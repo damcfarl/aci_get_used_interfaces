@@ -1,0 +1,35 @@
+---
+- name: Use REST to gather interface ports with a PolicyGroup assigned
+  hosts: apic
+  connection: local
+  gather_facts:  false
+
+  vars_files:
+    - external_vars.yml
+
+  tasks:
+    - name: "Reading Leaf CSV file information"
+      read_csv:
+        path: leaf_list.csv
+      register: leaf_list
+    - name: Use REST to gather interface ports with a PolicyGroup assigned
+      aci_rest:
+        host: "{{ apic }}"
+        username: "{{ aci_username }}"
+        password: "{{ aci_password }}"
+        validate_certs: "{{ aci_validate_certs }}"
+        method: get
+        path: '/api/node/mo/uni/infra/accportprof-{{ index1.aci_leaf }}_IntProf.json?query-target=subtree&target-subtree-class=infraHPortS&query-target-filter=not(wcard(infraHPortS.dn,"__ui_"))&target-subtree-class=infraPortBlk,infraSubPortBlk,infraRsAccBaseGrp&query-target=subtree&subscription=no'
+      delegate_to: localhost
+      register: query_result
+      loop: "{{ leaf_list.list }}"
+      loop_control:
+        loop_var: index1
+
+# damcfarl
+# ansible-playbook loop_port_rest_aci_json.yml -i hosts -vvv | grep '/rsaccBaseGrp|tDn'
+# Further processing will concatenate the line pairs
+# if file is created  cat port_list.out | egrep '/rsaccBaseGrp|tDn' | sed -e 's/^[ \t]*//;s/[ \t]*$//' | sed -e 'N;s/\n/ /'
+# In a single line
+# ansible-playbook loop_port_rest_aci_json.yml -i hosts -vvv | egrep '/rsaccBaseGrp|tDn' | sed -e 's/^[ \t]*//;s/[ \t]*$//' | sed -e 'N;s/\n/ /'
+#
